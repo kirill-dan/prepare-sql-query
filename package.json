@@ -1,0 +1,27 @@
+{
+  "name": "prepare-sql-query",
+  "version": "1.0.0",
+  "main": "src/index.mjs",
+  "keywords": [
+    "postgresql",
+    "bindings",
+    "database",
+    "nodejs",
+    "sql"
+  ],
+  "author": "Kirill Danilevsky, k.danilevsky@gmail.com, https://marketplace.ninja",
+  "license": "MIT",
+  "description": "Node.js solution for building a complex and flexible PostgreSQL query",
+  "type": "module",
+  "dependencies": {
+    "psql-bindings": "^1.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kirill-dan/prepare-sql-query"
+  },
+  "bugs": {
+    "url": "https://github.com/kirill-dan/prepare-sql-query/issues"
+  },
+  "homepage": "https://github.com/kirill-dan/prepare-sql-query#readme"
+}
