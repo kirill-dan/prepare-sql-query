@@ -1,6 +1,6 @@
 {
   "name": "prepare-sql-query",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "src/index.mjs",
   "keywords": [
     "postgresql",
@@ -11,7 +11,7 @@
   ],
   "author": "Kirill Danilevsky, k.danilevsky@gmail.com, https://marketplace.ninja",
   "license": "MIT",
-  "description": "Node.js solution for building a complex and flexible PostgreSQL query",
+  "description": "Node.js solution for building a complex and flexible PostgreSQL query including GraphQL and REST API",
   "type": "module",
   "dependencies": {
     "psql-bindings": "^1.0.1"
