@@ -48,7 +48,7 @@ export const removeSpecialSymbols = (search) => {
  *
  * @return {array} of objects with conditions in the format: [{ query: 'Condition query string', binding: { key: value } }]
  */
-const filtersHelper = ({ filters = {}, rules }) => {
+export const filtersHelper = ({ filters = {}, rules }) => {
   const where = [];
 
   if (Object.keys(filters).length) {
@@ -77,7 +77,7 @@ const filtersHelper = ({ filters = {}, rules }) => {
  *
  * @return {object} with two attributes: where {string}, bindings {object} { key: value }
  */
-const createWhereQuery = ({ whereConditions, doNotAddWhere = false }) => {
+export const createWhereQuery = ({ whereConditions, doNotAddWhere = false }) => {
   const conditions = [];
   let bindings = {};
   let where = '';
@@ -108,7 +108,7 @@ const createWhereQuery = ({ whereConditions, doNotAddWhere = false }) => {
  *                          If exist then we will use this data instead meta.order/meta.orderBy/sortingTableName
  * @return {object} with two attributes: sorting {string}, bindings {object} { key: value }
  */
-const createMetaQuery = (meta, table, orderRaw) => {
+export const createMetaQuery = (meta, table, orderRaw) => {
   const PER_PAGE = 25;
   const OFFSET = 0;
 
@@ -157,7 +157,7 @@ const createMetaQuery = (meta, table, orderRaw) => {
  * @param mainQuery {string} SQL query
  * @param bindings {object} SQL bindings for the query
  */
-const getCountRecords = async ({ mainQuery, bindings }) => {
+export const getCountRecords = async ({ mainQuery, bindings }) => {
   const regexpRows = /rows=(\d)+/g;
   const regexpActual = /actual rows=(\d)+/g;
   const countQuery = `EXPLAIN (ANALYZE, TIMING OFF) ${mainQuery}`;
@@ -191,6 +191,7 @@ const getCountRecords = async ({ mainQuery, bindings }) => {
  * @param sortingTableName {string|null} name of a table with schema for sorting (for example: 'data.users') if meta is used
  * @param filters {object} filter conditions (for example: { userType: "client" })
  * @param filterRules {object} with dictionary for filtering
+ * @param getTotalCount {boolean} get total count records in the DB (by default = true)
  *
  * @return {object} - { preparedQuery, bindings, totalCount }
  */
@@ -203,7 +204,8 @@ const prepareSQLQuery = async ({
                                  orderRaw = null,
                                  sortingTableName = null,
                                  filters = null,
-                                 filterRules = null
+                                 filterRules = null,
+                                 getTotalCount = true
                                }) => {
   // Array of objects with conditions in the format: [{ query: 'Condition query string', binding: { key: value } }]
   let whereConditions = where;
@@ -229,8 +231,8 @@ const prepareSQLQuery = async ({
   // Add bindings
   let bindings = conditionsQuery.bindings;
 
-  // Get count of records for the SQL query. Need to call before createMetaQuery
-  const totalCount = await getCountRecords({ mainQuery: preparedQuery, bindings: conditionsQuery.bindings });
+  // Get count of records for the SQL query. It needs to call before createMetaQuery
+  const totalCount = getTotalCount ? await getCountRecords({ mainQuery: preparedQuery, bindings: conditionsQuery.bindings }) : 0;
 
   // Add sorting and limit to query
   const sortingQuery = createMetaQuery(meta, sortingTableName, orderRaw);

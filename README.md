@@ -131,6 +131,8 @@ const dataWithSearch = async ({ search, filters, meta }) => {
 
 @param filterRules {object} with dictionary for filtering, in our case, it is FILTER_WITH_TABLES
 
+@param getTotalCount {boolean} get total count records in the DB (by default = true)
+
 @return {object} - { preparedQuery, bindings, totalCount }
 ```
 
@@ -240,8 +242,7 @@ export const userSQLFields = {
   lastName: { select: ['u.last_name'] },
   address: {
     select: ['to_jsonb(a) as address'],
-    join: ['INNER JOIN data.addresses a ON a.id = u.address_id'],
-    where: { query: 'a.id = u.address_id', binding: {} },
+    join: ['INNER JOIN data.addresses a ON a.id = u.address_id']
   },
   currency: {
     select: ['COALESCE(uset.currency, :defaultPlatformCurrency) as currency'],
