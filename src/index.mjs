@@ -160,9 +160,19 @@ export const createMetaQuery = (meta, table, orderRaw) => {
 export const getCountRecords = async ({ mainQuery, bindings }) => {
   const regexpRows = /rows=(\d)+/g;
   const regexpActual = /actual rows=(\d)+/g;
-  const countQuery = `EXPLAIN (ANALYZE, TIMING OFF) ${mainQuery}`;
+  let countQuery = `EXPLAIN (ANALYZE, TIMING OFF) ${mainQuery}`;
 
-  const countExplain = await DB.query(countQuery, { bindings });
+  // Remove redundant subQueries
+  let cleanedQuery = countQuery
+    .replace(/SELECT\s+(DISTINCT\s*)?([^\s,]+).*FROM\s+([\w.]+)/is, 'SELECT $1$2 FROM $3');
+
+  // Find new bindings in the query
+  const queryBindings = new Set([...cleanedQuery.matchAll(/(?<!:):([\w.]+)\b/g)].map((match) => match[1]));
+
+  // Create new bindings for this query
+  const cleanedBindings = [...queryBindings].reduce((acc, key) => ({ ...acc, [key]: bindings[key] }), {})
+
+  const countExplain = await DB.query(cleanedQuery, { bindings: cleanedBindings });
 
   let count = countExplain[0]['queryPlan'].match(regexpActual);
   count = count[0].match(regexpRows);
