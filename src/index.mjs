@@ -164,7 +164,7 @@ export const getCountRecords = async ({ mainQuery, bindings }) => {
 
   // Remove redundant subQueries
   let cleanedQuery = countQuery
-    .replace(/SELECT\s+(DISTINCT\s*)?([^\s,]+).*FROM\s+([\w.]+)/is, 'SELECT $1$2 FROM $3');
+    .replace(/SELECT\s+(DISTINCT\s*)?([^\s,]+).*FROM\s+(.*)(?=\s+(?:WHERE|GROUP|ORDER|LIMIT|$))/is, 'SELECT $1$2 FROM $3');
 
   // Find new bindings in the query
   const queryBindings = new Set([...cleanedQuery.matchAll(/(?<!:):([\w.]+)\b/g)].map((match) => match[1]));
