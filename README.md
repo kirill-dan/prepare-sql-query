@@ -83,7 +83,8 @@ const dataWithSearch = async ({ search, filters, meta }) => {
     meta,
     sortingTableName: 'data.articles',
     filters,
-    filterRules: FILTER_WITH_TABLES
+    filterRules: FILTER_WITH_TABLES,
+    rawTotalCountQuery: search || Object.keys(filters)?.length ? null : { query: 'SELECT COUNT(a.id) FROM data.articles a;' }
   });
 
   if (query.totalCount === 0) return { data: [], totalCount: query.totalCount };
@@ -132,6 +133,16 @@ const dataWithSearch = async ({ search, filters, meta }) => {
 @param filterRules {object} with dictionary for filtering, in our case, it is FILTER_WITH_TABLES
 
 @param getTotalCount {boolean} get total count records in the DB (by default = true)
+
+@param {object|null} rawTotalCountQuery - RAW query for the total count of records
+                                          Useful for showing all data (default is `null`)
+                                          If provided, the `getCountRecords` function will be ignored
+                                          If `getTotalCount` is `false`, this RAW query will be ignored
+                                          Example: {
+                                                     query: 'SELECT count(u.id) as count FROM data.users u WHERE u.type = :serviceProvider',
+                                                     bindings: { serviceProvider: 'serviceProvider' },
+                                                     countField: 'count'
+                                                   }
 
 @return {object} - { preparedQuery, bindings, totalCount }
 ```

@@ -202,6 +202,15 @@ export const getCountRecords = async ({ mainQuery, bindings }) => {
  * @param filters {object} filter conditions (for example: { userType: "client" })
  * @param filterRules {object} with dictionary for filtering
  * @param getTotalCount {boolean} get total count records in the DB (by default = true)
+ * @param {object|null} rawTotalCountQuery - RAW query for the total count of records
+ *                                           Useful for showing all data (default is `null`)
+ *                                           If provided, the `getCountRecords` function will be ignored
+ *                                           If `getTotalCount` is `false`, this RAW query will be ignored
+ *                                           Example: {
+ *                                                      query: 'SELECT count(u.id) as count FROM data.users u WHERE u.type = :serviceProvider',
+ *                                                      bindings: { serviceProvider: 'serviceProvider' },
+ *                                                      countField: 'count'
+ *                                                    }
  *
  * @return {object} - { preparedQuery, bindings, totalCount }
  */
@@ -215,43 +224,56 @@ const prepareSQLQuery = async ({
                                  sortingTableName = null,
                                  filters = null,
                                  filterRules = null,
-                                 getTotalCount = true
+                                 getTotalCount = true,
+                                 rawTotalCountQuery = null
                                }) => {
-  // Array of objects with conditions in the format: [{ query: 'Condition query string', binding: { key: value } }]
-  let whereConditions = where;
+  try {
+    let totalCount = 0;
 
-  // A general SQL query
-  let preparedQuery = mainQuery;
+    // Array of objects with conditions in the format: [{ query: 'Condition query string', binding: { key: value } }]
+    let whereConditions = where;
 
-  // If exist filters then add them to conditions
-  if (filters) {
-    const filterWhere = filtersHelper({ filters, rules: filterRules });
-    whereConditions = [...whereConditions, ...filterWhere];
+    // A general SQL query
+    let preparedQuery = mainQuery;
+
+    // If exist filters then add them to conditions
+    if (filters) {
+      const filterWhere = filtersHelper({ filters, rules: filterRules });
+      whereConditions = [...whereConditions, ...filterWhere];
+    }
+
+    // Create string with conditions and bindings
+    const conditionsQuery = createWhereQuery({ whereConditions, doNotAddWhere });
+
+    // Add conditions to query
+    preparedQuery += conditionsQuery.where;
+
+    // Add grouping
+    if (groupBy) preparedQuery += ` ${groupBy}`;
+
+    // Add bindings
+    let bindings = conditionsQuery.bindings;
+
+    // Get count of records for the SQL query. It needs to call before createMetaQuery
+    if (getTotalCount && !rawTotalCountQuery) totalCount = await getCountRecords({ mainQuery: preparedQuery, bindings: conditionsQuery.bindings });
+
+    // If exists RAW count query
+    if (getTotalCount && rawTotalCountQuery?.query) {
+      totalCount = await DB.query(rawTotalCountQuery?.query, {bindings: rawTotalCountQuery?.bindings});
+      totalCount = totalCount?.[0]?.[rawTotalCountQuery.countField || 'count'] || 0;
+    }
+
+    // Add sorting and limit to query
+    const sortingQuery = createMetaQuery(meta, sortingTableName, orderRaw);
+    preparedQuery += sortingQuery.sorting;
+
+    // Create bindings for a query
+    bindings = { ...bindings, ...sortingQuery.bindings };
+
+    return { preparedQuery, bindings, totalCount };
+  } catch (error) {
+     throw new Error(error.message);
   }
-
-  // Create string with conditions and bindings
-  const conditionsQuery = createWhereQuery({ whereConditions, doNotAddWhere });
-
-  // Add conditions to query
-  preparedQuery += conditionsQuery.where;
-
-  // Add grouping
-  if (groupBy) preparedQuery += ` ${groupBy}`;
-
-  // Add bindings
-  let bindings = conditionsQuery.bindings;
-
-  // Get count of records for the SQL query. It needs to call before createMetaQuery
-  const totalCount = getTotalCount ? await getCountRecords({ mainQuery: preparedQuery, bindings: conditionsQuery.bindings }) : 0;
-
-  // Add sorting and limit to query
-  const sortingQuery = createMetaQuery(meta, sortingTableName, orderRaw);
-  preparedQuery += sortingQuery.sorting;
-
-  // Create bindings for a query
-  bindings = { ...bindings, ...sortingQuery.bindings };
-
-  return { preparedQuery, bindings, totalCount };
 };
 
 /**
