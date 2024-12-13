@@ -305,22 +305,15 @@ export const getFieldsFromGraphQl = (info) => {
  * Get another model all related fields from graphQL query or mutation
  *
  * fields - is all fields from graphQl schema
- * relatedFields - is fields with JOIN to another table or SubQuery
  *
  * @param info {object} GraphQL info object
- * @return {{relatedFields: (*|*[]), fields: *}} fields data { fields, relatedFields }
+ * @return {{fields: *}} fields data { fields }
  */
 export const getRelatedFieldsFromGraphQl = (info) => {
   const fields = getFieldsFromGraphQl(info);
   const dataFields = fields?.find(({ name }) => name === 'data')?.fields || [];
-  const relatedDataFields = dataFields?.filter(({ fields }) => fields?.length > 0) || [];
-  const relatedFields = {};
 
-  for (const relateField of relatedDataFields) {
-    relatedFields[relateField.name] = relateField.fields?.map((item) => item.name) || [];
-  }
-
-  return { fields: dataFields?.map(({ name }) => name), relatedFields };
+  return { fields: dataFields };
 };
 
 /**
@@ -354,9 +347,16 @@ export const createSqlQueryForBuilder = ({ mainQuery, where }) => {
  * The return format corresponds to the `prepareSQLQuery` function from the 'prepare-sql-query' package
  *
  * @param {object} modelSQLField - Contains model SQL fields, including table name and query configurations
- * @param {array} fieldsData - An array of field names to include in the query
- * @param {object} relatedFieldsData - Fields that related with other models (have other fields that needs to get from related model)
- * @param info {object} GraphQL info object. By default is null. If you use this arg, you can skip fieldsData and relatedFieldsData
+ * @param {array} fieldsData - An array of field names to include in the query in format:
+ *                             [
+ *                              { name: 'id', fields: null },
+ *                              { name: 'users', fields: [
+ *                                                        { name: 'id', fields: null },
+ *                                                        { name: 'email', fields: null }
+ *                                                        ]
+ *                               }
+ *                              ]
+ * @param info {object} GraphQL info object. By default is null. If you use this param, you can skip fieldsData
  *
  * @return {object} An object containing data for creating the SQL query:
  * {
@@ -459,18 +459,16 @@ export const createSqlQueryForBuilder = ({ mainQuery, where }) => {
  *               This indicates whether the subquery should return one object (`{}`) or multiple objects (`[]`)
  *
  */
-export const postgreSqlBuilder = ({ modelSQLField = null, fieldsData = [], relatedFieldsData = {}, info = null }) => {
+export const postgreSqlBuilder = ({ modelSQLField = null, fieldsData = [], info = null }) => {
   if (!modelSQLField) throw new Error('Invalid input: modelSQLField is required');
   if (!fieldsData?.length && !info) throw new Error('Invalid input: fields or info are required (fields must be an array, info - object)');
 
   let fields = fieldsData;
-  let relatedFields = relatedFieldsData;
 
   // If needs to get fields from graphQl schema
   if (info) {
     const fieldsFromGraphQl = getRelatedFieldsFromGraphQl(info);
     fields = fieldsFromGraphQl.fields;
-    relatedFields = fieldsFromGraphQl.relatedFields;
   }
 
   const select = new Set();
@@ -480,10 +478,10 @@ export const postgreSqlBuilder = ({ modelSQLField = null, fieldsData = [], relat
 
   // Try to get all SQL queries schema for every field
   for (const field of fields) {
-    const modelField = modelSQLField?.[field];
+    const modelField = modelSQLField?.[field?.name];
 
     // Check if this field is related to another model (use fields from the related model)
-    if (relatedFields?.[field]?.length && modelField?.relation) {
+    if (field?.fields?.length && modelField?.relation) {
       // Retrieve the related model schema
       const relatedModelSQLField = modelField?.relation;
 
@@ -493,11 +491,8 @@ export const postgreSqlBuilder = ({ modelSQLField = null, fieldsData = [], relat
       // Determine the condition for this model, required to define the subQuery condition
       const whereForRelatedField = modelField?.where;
 
-      // Retrieve the fields for this schema
-      const fieldsForRelatedField = relatedFields?.[field];
-
       // Create a query for the related model schema (relatedModelSQLField)
-      const relatedBuilderData = postgreSqlBuilder({ modelSQLField: relatedModelSQLField, fieldsData: fieldsForRelatedField });
+      const relatedBuilderData = postgreSqlBuilder({ modelSQLField: relatedModelSQLField, fieldsData: field?.fields });
 
       // Add the condition for this data
       relatedBuilderData?.where?.push(whereForRelatedField);
@@ -509,14 +504,10 @@ export const postgreSqlBuilder = ({ modelSQLField = null, fieldsData = [], relat
       let subQuery = subQueryData.preparedQuery;
 
       // Check type for the subQuery and add the correct wrapper (Array)
-      if (Array.isArray(typeForRelatedField)) {
-        subQuery = `(SELECT jsonb_agg(${field}_alias) FROM (${subQuery}) AS ${field}_alias) AS ${field}`;
-      }
+      if (Array.isArray(typeForRelatedField)) subQuery = `(SELECT jsonb_agg(${field?.name}_alias) FROM (${subQuery}) AS ${field?.name}_alias) AS ${field?.name}`;
 
       // Check type for the subQuery and add the correct wrapper (Object)
-      if (typeForRelatedField.constructor === Object) {
-        subQuery = `(SELECT to_jsonb(${field}_alias) FROM (${subQuery}) AS ${field}_alias) AS ${field}`;
-      }
+      if (typeForRelatedField.constructor === Object) subQuery = `(SELECT to_jsonb(${field?.name}_alias) FROM (${subQuery}) AS ${field?.name}_alias) AS ${field?.name}`;
 
       // Add this subQuery to select
       select.add(subQuery);

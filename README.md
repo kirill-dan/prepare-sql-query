@@ -194,7 +194,6 @@ The `postgreSqlBuilder` function simplifies the creation of SQL queries for Post
 postgreSqlBuilder({
   modelSQLField = null,
   fieldsData = [],
-  relatedFieldsData = {},
   info = null,
 });
 ```
@@ -202,9 +201,14 @@ postgreSqlBuilder({
 ## Parameters
 
 - **modelSQLField** (object): Contains SQL field definitions for the main model, including the table name and configurations for fields and relations
-- **fieldsData** (array): An array of field names to include in the query
-- **relatedFieldsData** (object): Specifies fields related to other models, including additional fields to retrieve
-- **info** (object, optional): A GraphQL info object. When provided, `fieldsData` and `relatedFieldsData` are automatically derived from `info`
+- **fieldsData** (array): An array of fields names to include in the query in the next format: 
+```javascript
+[
+ { name: 'id', fields: null },
+ { name: 'users', fields: [{ name: 'id', fields: null }, { name: 'email', fields: null } ] }
+ ]
+````
+- **info** (object, optional): A GraphQL info object. When provided, `fieldsData` are automatically derived from `info`
 
 ## Returns
 
